@@ -2,6 +2,16 @@
 import React, { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 
+// Remove accents and punctuation, normalize to plain letters/numbers/spaces
+function normalizeInput(str: string): string {
+  return str
+    .normalize("NFD")                       // split accents from letters
+    .replace(/[\u0300-\u036f]/g, "")       // remove accent codepoints
+    .replace(/[^\p{L}\p{N}\s]/gu, "")      // strip any non-letter/number/space
+    .toLowerCase()
+    .trim();
+}
+
 const verbs = [
   { verb: "hablar", type: "ar", conjugations: {
     Presente: ["hablo","hablas","habla","hablamos","habláis","hablan"],
@@ -90,7 +100,7 @@ export default function SpanishVerbGame() {
     if (isSentenceMode) {
       // only check that the required conjugation appears
       const expected = question.verb.conjugations[question.tense][ getPronounIndex(question.pronoun) ];
-      if (userAnswer.toLowerCase().includes(expected.toLowerCase())) {
+      if (normalizeInput(userAnswer).includes(normalizeInput(expected))) {
         setFeedback("🧠 ¡Perfecto! You've used the verb correctly in context.");
         setScore(s => s + 1);
         setShowAnswer(true);
@@ -104,7 +114,8 @@ export default function SpanishVerbGame() {
     const conjugations = question.verb.conjugations[question.tense];
     const idx = getPronounIndex(question.pronoun);
     const correct = conjugations[idx];
-    const isCorrect = userAnswer.trim().toLowerCase() === correct.toLowerCase();
+    const isCorrect =
+  normalizeInput(userAnswer) === normalizeInput(correct);
     const key = generateKey(question.verb.verb, question.tense, question.pronoun);
     const current = progressMap[key] || { correctCount: 0, totalAttempts: 0, mastered: false };
 
