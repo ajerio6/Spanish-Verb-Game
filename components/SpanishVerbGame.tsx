@@ -2,47 +2,46 @@
 import React, { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 
-// Remove accents and punctuation, normalize to plain letters/numbers/spaces
+// Normalize input: strip accents & punctuation, lowercase
 function normalizeInput(str: string): string {
   return str
-    .normalize("NFD")                       // split accents from letters
-    .replace(/[\u0300-\u036f]/g, "")       // remove accent codepoints
-    .replace(/[^\p{L}\p{N}\s]/gu, "")      // strip any non-letter/number/space
+    .normalize("NFD")                 // decompose accents
+    .replace(/[\u0300-\u036f]/g, "")  // remove diacritical marks
+    .replace(/[^0-9A-Za-z\s]/g, "")   // strip punctuation
     .toLowerCase()
     .trim();
 }
 
 const verbs = [
   { verb: "hablar", type: "ar", conjugations: {
-    Presente: ["hablo","hablas","habla","hablamos","habláis","hablan"],
-    Pretérito: ["hablé","hablaste","habló","hablamos","hablasteis","hablaron"],
+    Presente:   ["hablo","hablas","habla","hablamos","habláis","hablan"],
+    Pretérito:  ["hablé","hablaste","habló","hablamos","hablasteis","hablaron"],
     Imperfecto: ["hablaba","hablabas","hablaba","hablábamos","hablabais","hablaban"],
-    Futuro:    ["hablaré","hablarás","hablará","hablaremos","hablaréis","hablarán"],
+    Futuro:     ["hablaré","hablarás","hablará","hablaremos","hablaréis","hablarán"],
   }},
   { verb: "comer", type: "er", conjugations: {
-    Presente: ["como","comes","come","comemos","coméis","comen"],
-    Pretérito: ["comí","comiste","comió","comimos","comisteis","comieron"],
+    Presente:   ["como","comes","come","comemos","coméis","comen"],
+    Pretérito:  ["comí","comiste","comió","comimos","comisteis","comieron"],
     Imperfecto: ["comía","comías","comía","comíamos","comíais","comían"],
-    Futuro:    ["comeré","comerás","comerá","comeremos","comeréis","comerán"],
+    Futuro:     ["comeré","comerás","comerá","comeremos","comeréis","comerán"],
   }},
   { verb: "vivir", type: "ir", conjugations: {
-    Presente: ["vivo","vives","vive","vivimos","vivís","viven"],
-    Pretérito: ["viví","viviste","vivió","vivimos","vivisteis","vivieron"],
+    Presente:   ["vivo","vives","vive","vivimos","vivís","viven"],
+    Pretérito:  ["viví","viviste","vivió","vivimos","vivisteis","vivieron"],
     Imperfecto: ["vivía","vivías","vivía","vivíamos","vivíais","vivían"],
-    Futuro:    ["viviré","vivirás","vivirá","viviremos","viviréis","vivirán"],
+    Futuro:     ["viviré","vivirás","vivirá","viviremos","viviréis","vivirán"],
   }},
 ];
 
 const pronouns = [
-  "yo", "tú", "él/ella/usted",
-  "nosotros/as", "vosotros/as", "ellos/ellas/ustedes"
+  "yo","tú","él/ella/usted",
+  "nosotros/as","vosotros/as","ellos/ellas/ustedes"
 ];
 
-// some generic locations/contexts for the fill-in-the-blank sentences
 const contexts = [
-  "el parque", "la escuela", "la casa",
-  "el restaurante", "la tienda", "la biblioteca",
-  "el cine", "el trabajo", "la cafetería", "el aeropuerto"
+  "el parque","la escuela","la casa","el restaurante",
+  "la tienda","la biblioteca","el cine","el trabajo",
+  "la cafetería","el aeropuerto"
 ];
 
 function getRandomItem<T>(arr: T[]): T {
@@ -76,13 +75,12 @@ export default function SpanishVerbGame() {
   }>>({});
   const [showReview, setShowReview] = useState(false);
 
-  // NEW: sentence‐mode states
+  // sentence‐mode
   const [isSentenceMode, setIsSentenceMode] = useState(false);
   const [sentenceTemplate, setSentenceTemplate] = useState("");
-  
   const [strikes, setStrikes] = useState(0);
 
-  // load/save progress
+  // load progress
   useEffect(() => {
     const stored = localStorage.getItem("spanishVerbGameProgress");
     if (stored) setProgressMap(JSON.parse(stored));
@@ -96,42 +94,40 @@ export default function SpanishVerbGame() {
   }
 
   function checkAnswer() {
-    // Sentence challenge mode
+    // Sentence‐mode check
     if (isSentenceMode) {
-      // only check that the required conjugation appears
-      const expected = question.verb.conjugations[question.tense][ getPronounIndex(question.pronoun) ];
+      const expected = question.verb.conjugations[question.tense][
+        getPronounIndex(question.pronoun)
+      ];
       if (normalizeInput(userAnswer).includes(normalizeInput(expected))) {
         setFeedback("🧠 ¡Perfecto! You've used the verb correctly in context.");
         setScore(s => s + 1);
         setShowAnswer(true);
       } else {
-        setFeedback(`🧐 Try again. Make sure to include "${expected}".`);
+        setFeedback(`🧐 Try again. Make sure to include the verb form.`);
       }
       return;
     }
 
-    // Normal conjugation check
-    const conjugations = question.verb.conjugations[question.tense];
+    // Conjugation check
+    const list = question.verb.conjugations[question.tense];
     const idx = getPronounIndex(question.pronoun);
-    const correct = conjugations[idx];
-    const isCorrect =
-  normalizeInput(userAnswer) === normalizeInput(correct);
+    const correct = list[idx];
+    const isCorrect = normalizeInput(userAnswer) === normalizeInput(correct);
     const key = generateKey(question.verb.verb, question.tense, question.pronoun);
-    const current = progressMap[key] || { correctCount: 0, totalAttempts: 0, mastered: false };
+    const current = progressMap[key] || { correctCount:0, totalAttempts:0, mastered:false };
 
     if (isCorrect) {
-      // reset strikes
       setStrikes(0);
-      // increment score & streak
       setScore(s => s + 1);
       setStreak(s => s + 1);
       setFeedback("✅ ¡Correcto!");
 
-      // confetti for multiples of 5
+      // confetti on each 5th streak
       if ((streak + 1) % 5 === 0) {
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        setMilestoneMessage(`🔥 You're on fire! Streak: ${streak + 1}!`);
-        setTimeout(() => setMilestoneMessage(""), 3000);
+        confetti({ particleCount:100, spread:70, origin:{y:0.6} });
+        setMilestoneMessage(`🔥 Streak: ${streak+1}!`);
+        setTimeout(()=>setMilestoneMessage(""),3000);
       }
 
       // update mastery
@@ -141,18 +137,18 @@ export default function SpanishVerbGame() {
         ...pm,
         [key]: {
           correctCount: newCount,
-          totalAttempts: current.totalAttempts + 1,
+          totalAttempts: current.totalAttempts+1,
           mastered
         }
       }));
 
       if (mastered && !current.mastered) {
-        // generate a blank‐fill template
-        const pron = question.pronoun.split("/")[0];
-        const cap = pron.charAt(0).toUpperCase() + pron.slice(1);
+        // sentence template for fill‐in
+        const rootPron = question.pronoun.split("/")[0];
+        const cap = rootPron.charAt(0).toUpperCase() + rootPron.slice(1);
         const ctx = getRandomItem(contexts);
         setSentenceTemplate(`${cap} ____ en ${ctx}.`);
-        setFeedback("🎉 Mastered! Fill in the blank below:");
+        setFeedback("🎉 Mastered! Fill in the blank:");
         setIsSentenceMode(true);
         setShowAnswer(false);
         return;
@@ -160,7 +156,7 @@ export default function SpanishVerbGame() {
 
       setShowAnswer(true);
     } else {
-      // wrong answer → strikes
+      // wrong → strikes
       const nextStrike = strikes + 1;
       if (nextStrike >= 2) {
         setFeedback(`❌ Incorrecto. Correct answer: ${correct}`);
@@ -170,7 +166,7 @@ export default function SpanishVerbGame() {
           ...pm,
           [key]: {
             correctCount: current.correctCount,
-            totalAttempts: current.totalAttempts + 1,
+            totalAttempts: current.totalAttempts+1,
             mastered: false
           }
         }));
