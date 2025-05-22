@@ -1,7 +1,7 @@
-/ (repo root)
-├── components
-│   └── SpanishVerbGame.tsx
-├── pages
-│   └── index.tsx
-├── package.json
-└── next.config.js
+import { useEffect, useState } from "react";
+import confetti from "canvas-confetti";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+
+// ... the rest of the SpanishVerbGame code exactly as provided
