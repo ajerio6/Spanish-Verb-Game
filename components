@@ -1,0 +1,7 @@
+/ (repo root)
+├── components
+│   └── SpanishVerbGame.tsx
+├── pages
+│   └── index.tsx
+├── package.json
+└── next.config.js
