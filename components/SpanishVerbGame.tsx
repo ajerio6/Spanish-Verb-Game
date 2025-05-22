@@ -4,26 +4,36 @@ import confetti from "canvas-confetti";
 
 const verbs = [
   { verb: "hablar", type: "ar", conjugations: {
-    Presente: ["hablo", "hablas", "habla", "hablamos", "habláis", "hablan"],
-    Pretérito: ["hablé", "hablaste", "habló", "hablamos", "hablasteis", "hablaron"],
-    Imperfecto: ["hablaba", "hablabas", "hablaba", "hablábamos", "hablabais", "hablaban"],
-    Futuro: ["hablaré", "hablarás", "hablará", "hablaremos", "hablaréis", "hablarán"],
+    Presente: ["hablo","hablas","habla","hablamos","habláis","hablan"],
+    Pretérito: ["hablé","hablaste","habló","hablamos","hablasteis","hablaron"],
+    Imperfecto: ["hablaba","hablabas","hablaba","hablábamos","hablabais","hablaban"],
+    Futuro:    ["hablaré","hablarás","hablará","hablaremos","hablaréis","hablarán"],
   }},
   { verb: "comer", type: "er", conjugations: {
-    Presente: ["como", "comes", "come", "comemos", "coméis", "comen"],
-    Pretérito: ["comí", "comiste", "comió", "comimos", "comisteis", "comieron"],
-    Imperfecto: ["comía", "comías", "comía", "comíamos", "comíais", "comían"],
-    Futuro: ["comeré", "comerás", "comerá", "comeremos", "comeréis", "comerán"],
+    Presente: ["como","comes","come","comemos","coméis","comen"],
+    Pretérito: ["comí","comiste","comió","comimos","comisteis","comieron"],
+    Imperfecto: ["comía","comías","comía","comíamos","comíais","comían"],
+    Futuro:    ["comeré","comerás","comerá","comeremos","comeréis","comerán"],
   }},
   { verb: "vivir", type: "ir", conjugations: {
-    Presente: ["vivo", "vives", "vive", "vivimos", "vivís", "viven"],
-    Pretérito: ["viví", "viviste", "vivió", "vivimos", "vivisteis", "vivieron"],
-    Imperfecto: ["vivía", "vivías", "vivía", "vivíamos", "vivíais", "vivían"],
-    Futuro: ["viviré", "vivirás", "vivirá", "viviremos", "viviréis", "vivirán"],
+    Presente: ["vivo","vives","vive","vivimos","vivís","viven"],
+    Pretérito: ["viví","viviste","vivió","vivimos","vivisteis","vivieron"],
+    Imperfecto: ["vivía","vivías","vivía","vivíamos","vivíais","vivían"],
+    Futuro:    ["viviré","vivirás","vivirá","viviremos","viviréis","vivirán"],
   }},
 ];
 
-const pronouns = ["yo","tú","él/ella/usted","nosotros/as","vosotros/as","ellos/ellas/ustedes"];
+const pronouns = [
+  "yo", "tú", "él/ella/usted",
+  "nosotros/as", "vosotros/as", "ellos/ellas/ustedes"
+];
+
+// some generic locations/contexts for the fill-in-the-blank sentences
+const contexts = [
+  "el parque", "la escuela", "la casa",
+  "el restaurante", "la tienda", "la biblioteca",
+  "el cine", "el trabajo", "la cafetería", "el aeropuerto"
+];
 
 function getRandomItem<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -49,16 +59,24 @@ export default function SpanishVerbGame() {
   const [streak, setStreak] = useState(0);
   const [milestoneMessage, setMilestoneMessage] = useState("");
   const [isDark, setIsDark] = useState(false);
-  const [progressMap, setProgressMap] = useState<Record<string, {correctCount:number;totalAttempts:number;mastered:boolean;}>>({});
+  const [progressMap, setProgressMap] = useState<Record<string, {
+    correctCount: number;
+    totalAttempts: number;
+    mastered: boolean;
+  }>>({});
   const [showReview, setShowReview] = useState(false);
+
+  // NEW: sentence‐mode states
   const [isSentenceMode, setIsSentenceMode] = useState(false);
+  const [sentenceTemplate, setSentenceTemplate] = useState("");
+  
   const [strikes, setStrikes] = useState(0);
 
+  // load/save progress
   useEffect(() => {
     const stored = localStorage.getItem("spanishVerbGameProgress");
     if (stored) setProgressMap(JSON.parse(stored));
   }, []);
-
   useEffect(() => {
     localStorage.setItem("spanishVerbGameProgress", JSON.stringify(progressMap));
   }, [progressMap]);
@@ -68,51 +86,62 @@ export default function SpanishVerbGame() {
   }
 
   function checkAnswer() {
-    // Sentence‐mode challenge
+    // Sentence challenge mode
     if (isSentenceMode) {
-      const expected = question.verb.conjugations[question.tense][getPronounIndex(question.pronoun)];
+      // only check that the required conjugation appears
+      const expected = question.verb.conjugations[question.tense][ getPronounIndex(question.pronoun) ];
       if (userAnswer.toLowerCase().includes(expected.toLowerCase())) {
         setFeedback("🧠 ¡Perfecto! You've used the verb correctly in context.");
         setScore(s => s + 1);
+        setShowAnswer(true);
       } else {
         setFeedback(`🧐 Try again. Make sure to include "${expected}".`);
       }
-      setShowAnswer(true);
       return;
     }
 
-    // Conjugation check
+    // Normal conjugation check
     const conjugations = question.verb.conjugations[question.tense];
     const idx = getPronounIndex(question.pronoun);
-    const correctAnswer = conjugations[idx];
-    const isCorrect = userAnswer.trim().toLowerCase() === correctAnswer.toLowerCase();
+    const correct = conjugations[idx];
+    const isCorrect = userAnswer.trim().toLowerCase() === correct.toLowerCase();
     const key = generateKey(question.verb.verb, question.tense, question.pronoun);
-    const current = progressMap[key] || {correctCount:0,totalAttempts:0,mastered:false};
+    const current = progressMap[key] || { correctCount: 0, totalAttempts: 0, mastered: false };
 
     if (isCorrect) {
-      // Reset strikes, increment score & streak
+      // reset strikes
       setStrikes(0);
+      // increment score & streak
       setScore(s => s + 1);
       setStreak(s => s + 1);
       setFeedback("✅ ¡Correcto!");
 
-      // Confetti on every 5th
-      if ((streak+1) % 5 === 0) {
-        confetti({ particleCount:100, spread:70, origin:{y:0.6} });
-        setMilestoneMessage(`🔥 You're on fire! Streak: ${streak+1}!`);
-        setTimeout(()=>setMilestoneMessage(""),3000);
+      // confetti for multiples of 5
+      if ((streak + 1) % 5 === 0) {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        setMilestoneMessage(`🔥 You're on fire! Streak: ${streak + 1}!`);
+        setTimeout(() => setMilestoneMessage(""), 3000);
       }
 
-      // Mastery tracking
-      const newCorrectCount = current.correctCount + 1;
-      const mastered = newCorrectCount >= 7;
+      // update mastery
+      const newCount = current.correctCount + 1;
+      const mastered = newCount >= 7;
       setProgressMap(pm => ({
         ...pm,
-        [key]: {correctCount:newCorrectCount, totalAttempts:current.totalAttempts+1, mastered}
+        [key]: {
+          correctCount: newCount,
+          totalAttempts: current.totalAttempts + 1,
+          mastered
+        }
       }));
 
       if (mastered && !current.mastered) {
-        setFeedback("🎉 Mastered! Now use it in a sentence:");
+        // generate a blank‐fill template
+        const pron = question.pronoun.split("/")[0];
+        const cap = pron.charAt(0).toUpperCase() + pron.slice(1);
+        const ctx = getRandomItem(contexts);
+        setSentenceTemplate(`${cap} ____ en ${ctx}.`);
+        setFeedback("🎉 Mastered! Fill in the blank below:");
         setIsSentenceMode(true);
         setShowAnswer(false);
         return;
@@ -120,18 +149,18 @@ export default function SpanishVerbGame() {
 
       setShowAnswer(true);
     } else {
-      // Wrong answer: strikes logic
+      // wrong answer → strikes
       const nextStrike = strikes + 1;
       if (nextStrike >= 2) {
-        setFeedback(`❌ Incorrecto. Correct answer: ${correctAnswer}`);
+        setFeedback(`❌ Incorrecto. Correct answer: ${correct}`);
         setStrikes(0);
         setStreak(0);
         setProgressMap(pm => ({
           ...pm,
           [key]: {
             correctCount: current.correctCount,
-            totalAttempts: current.totalAttempts+1,
-            mastered:false
+            totalAttempts: current.totalAttempts + 1,
+            mastered: false
           }
         }));
         setShowAnswer(true);
@@ -172,17 +201,26 @@ export default function SpanishVerbGame() {
               <span>🏆 Score: {score}</span>
               <span>⛔ Strikes: {strikes}/2</span>
             </div>
+
             <p><strong>Verb:</strong> {question.verb.verb}</p>
             <p><strong>Tense:</strong> {question.tense}</p>
             <p><strong>Pronoun:</strong> {question.pronoun}</p>
+
+            {isSentenceMode && (
+              <p className="text-sm font-medium">
+                <strong>Fill in the blank:</strong> {sentenceTemplate}
+              </p>
+            )}
+
             <input
               type="text"
               value={userAnswer}
               onChange={e=>setUserAnswer(e.target.value)}
-              placeholder={isSentenceMode?"Write a full sentence":"Your conjugation"}
+              placeholder={isSentenceMode?"Your completed sentence":"Your conjugation"}
               disabled={showAnswer}
               className="w-full border rounded px-2 py-1"
             />
+
             {!showAnswer ? (
               <button onClick={checkAnswer} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded">
                 Submit
@@ -192,19 +230,19 @@ export default function SpanishVerbGame() {
                 Next
               </button>
             )}
+
             {feedback && <p className="mt-2 text-sm">{feedback}</p>}
+
             <button onClick={()=>setShowReview(r=>!r)} className="mt-2 text-sm underline">
               {showReview?"Hide":"Show"} Verb Review
             </button>
             {showReview && (
               <div className="max-h-60 overflow-auto mt-4 text-sm space-y-1">
                 {Object.entries(progressMap).map(([key,val])=>{
-                  const [v,t,p]=key.split("-");
-                  return (
-                    <p key={key}>
-                      {val.mastered?"✅":val.correctCount>=3?"🔄":"❗"} {v} – {t} – {p} ({val.correctCount}/7)
-                    </p>
-                  );
+                  const [v,t,p] = key.split("-");
+                  return <p key={key}>
+                    {val.mastered?"✅":val.correctCount>=3?"🔄":"❗"} {v} – {t} – {p} ({val.correctCount}/7)
+                  </p>;
                 })}
               </div>
             )}
